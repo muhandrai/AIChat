@@ -219,12 +219,11 @@ with st.sidebar:
     st.header("⚙️ Chat Settings")
     
     model_options = [
-        "x-ai/grok-4.1-fast",
-        "xiaomi/mimo-v2-pro",
-        "google/gemini-2.5-flash",
         "meta-llama/llama-4-maverick",
+        "x-ai/grok-4.20",
+        "xiaomi/mimo-v2-pro",
         "writer/palmyra-x5",
-        "qwen/qwen3.5-flash-02-23",
+        "minimax/minimax-m1",
         "qwen/qwen-plus",
     ]
     selected_model = st.selectbox("Select Model:", model_options)
