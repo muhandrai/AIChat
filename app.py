@@ -384,7 +384,6 @@ if prompt_data:
             else:
                 generator = stream_openrouter(api_key, current_chat["messages"], selected_model, reasoning_box, enable_reasoning, token_placeholder)
             
-            # Gunakan st.write_stream untuk menampilkan konten Assistant
             full_response = st.write_stream(generator)
             
             current_chat["messages"].append({"role": "assistant", "content": full_response})
