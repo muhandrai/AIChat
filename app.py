@@ -141,47 +141,6 @@ def generate_title_from_first_ai_response(api_key: str, base_url: str, model_nam
         fallback = response_text.strip().splitlines()[0] if response_text.strip() else ""
         return fallback[:40] + ("..." if len(fallback) > 40 else "") if fallback else "New chat"
 
-def stream_deepseek_official(api_key: str, messages: list, model_name: str, reasoning_box, enable_reasoning: bool, token_placeholder):
-    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-    
-    extra_body = {}
-    if enable_reasoning:
-        extra_body = {
-            "thinking": {
-                "type": "enabled"
-            }
-        }
-    
-    try:
-        stream = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            stream=True,
-            extra_body=extra_body if extra_body else None,
-            stream_options={"include_usage": True}
-        )
-        
-        thinking_text = ""
-        for chunk in stream:
-            if getattr(chunk, 'usage', None) is not None:
-                st.session_state.total_tokens = chunk.usage.total_tokens
-                token_placeholder.metric("Total Tokens (Context)", f"{st.session_state.total_tokens:,}")
-
-            if not getattr(chunk, 'choices', None) or len(chunk.choices) == 0: continue
-            delta = chunk.choices[0].delta
-            
-            reasoning = getattr(delta, 'reasoning_content', None)
-            if reasoning and enable_reasoning:
-                thinking_text += reasoning
-                reasoning_box.info(f"**💭 Thinking Process (DeepSeek):**\n\n{thinking_text}")
-                
-            content = getattr(delta, 'content', None)
-            if content:
-                yield content
-                
-    except Exception as e:
-        st.error(f"DeepSeek API Error: {e}")
-        yield ""
 
 def stream_openrouter(api_key: str, messages: list, model_name: str, reasoning_box, enable_reasoning: bool, token_placeholder):
     client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
@@ -270,14 +229,9 @@ with st.sidebar:
     ]
     selected_model = st.selectbox("Select Model:", model_options)
     
-    if selected_model == "deepseek-chat":
-        provider = "Official DeepSeek"
-        base_url = "https://api.deepseek.com"
-        api_key = st.text_input("DeepSeek API Key", type="password", value=os.getenv("DEEPSEEK_API_KEY", ""))
-    else:
-        provider = "OpenRouter"
-        base_url = "https://openrouter.ai/api/v1"
-        api_key = st.text_input("OpenRouter API Key", type="password", value=os.getenv("OPENROUTER_API_KEY", ""))
+    provider = "OpenRouter"
+    base_url = "https://openrouter.ai/api/v1"
+    api_key = os.getenv("OPENROUTER_API_KEY")
     
     st.caption(f"*Active Provider: {provider}*")
     st.divider()
@@ -379,10 +333,7 @@ if prompt_data:
         with st.chat_message("assistant"):
             reasoning_box = st.empty()
             
-            if selected_model == "deepseek-chat":
-                generator = stream_deepseek_official(api_key, current_chat["messages"], selected_model, reasoning_box, enable_reasoning, token_placeholder)
-            else:
-                generator = stream_openrouter(api_key, current_chat["messages"], selected_model, reasoning_box, enable_reasoning, token_placeholder)
+            generator = stream_openrouter(api_key, current_chat["messages"], selected_model, reasoning_box, enable_reasoning, token_placeholder)
             
             full_response = st.write_stream(generator)
             
