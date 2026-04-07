@@ -205,45 +205,47 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, reasoning_b
         )
         
         thinking_text = ""
-        raw_content = ""
+        in_think_block = False
         
         for chunk in stream:
-            # 1. Menangani object usage yang dikirim pada chunk terakhir
             if getattr(chunk, 'usage', None) is not None:
                 if isinstance(chunk.usage, dict):
                     st.session_state.total_tokens = chunk.usage.get("total_tokens", 0)
                 else:
                     st.session_state.total_tokens = getattr(chunk.usage, "total_tokens", 0)
-                
                 token_placeholder.metric("Total Tokens (Context)", f"{st.session_state.total_tokens:,}")
 
-            # 2. Skip jika choices kosong untuk menghindari IndexError pada chunk terakhir
             if not getattr(chunk, 'choices', None) or len(chunk.choices) == 0: 
                 continue
                 
             delta = chunk.choices[0].delta
             
-            # 3. Tangkap Reasoning
+            # 1. Handle Native Reasoning (jika tersedia di delta)
             reasoning = getattr(delta, 'reasoning', None)
             if reasoning and enable_reasoning:
                 thinking_text += reasoning
                 reasoning_box.info(f"**💭 Thinking Process (OpenRouter):**\n\n{thinking_text}")
             
-            # 4. Tangkap Content
+            # 2. Handle Content dengan filter tag <think>
             content = getattr(delta, 'content', None)
             if content:
-                raw_content += content
+                # Logika sederhana filter <think> yang mungkin ada di dalam field content
+                if "<think>" in content:
+                    in_think_block = True
+                    parts = content.split("<think>")
+                    # Yield bagian sebelum <think> jika ada
+                    if parts[0]: yield parts[0]
+                    # Sisanya masuk ke thinking process logic (bisa diabaikan jika reasoning sudah 'aman')
                 
-                clean_content = re.sub(r"<think>.*?</think>", "", raw_content, flags=re.DOTALL | re.IGNORECASE)
-                
-                if enable_reasoning and len(clean_content) < len(raw_content):
-                    think_blocks = re.findall(r"<think>(.*?)</think>", raw_content, flags=re.DOTALL | re.IGNORECASE)
-                    if think_blocks:
-                        leaked_thinking = "\n".join(think_blocks)
-                        reasoning_box.info(f"**💭 Thinking Process (<think> tags):**\n\n{leaked_thinking}")
-                
-                if not raw_content.rfind("<think>") > raw_content.rfind("</think>"):
-                    yield content.replace("<think>", "").replace("</think>", "")
+                if "</think>" in content:
+                    in_think_block = False
+                    parts = content.split("</think>")
+                    # Yield bagian setelah </think> jika ada
+                    if len(parts) > 1 and parts[1]: yield parts[1]
+                    continue
+
+                if not in_think_block:
+                    yield content
                     
     except Exception as e:
         st.error(f"OpenRouter API Error: {e}")
@@ -376,15 +378,14 @@ if prompt_data:
         
         with st.chat_message("assistant"):
             reasoning_box = st.empty()
-            content_box = st.empty()
             
-            with content_box:
-                if selected_model == "deepseek-chat":
-                    generator = stream_deepseek_official(api_key, current_chat["messages"], selected_model, reasoning_box, enable_reasoning, token_placeholder)
-                else:
-                    generator = stream_openrouter(api_key, current_chat["messages"], selected_model, reasoning_box, enable_reasoning, token_placeholder)
-                
-                full_response = st.write_stream(generator)
+            if selected_model == "deepseek-chat":
+                generator = stream_deepseek_official(api_key, current_chat["messages"], selected_model, reasoning_box, enable_reasoning, token_placeholder)
+            else:
+                generator = stream_openrouter(api_key, current_chat["messages"], selected_model, reasoning_box, enable_reasoning, token_placeholder)
+            
+            # Gunakan st.write_stream untuk menampilkan konten Assistant
+            full_response = st.write_stream(generator)
             
             current_chat["messages"].append({"role": "assistant", "content": full_response})
             
