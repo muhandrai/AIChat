@@ -225,6 +225,7 @@ with st.sidebar:
         "writer/palmyra-x5",
         "minimax/minimax-m1",
         "qwen/qwen-plus",
+        "google/gemini-2.5-flash",
     ]
     selected_model = st.selectbox("Select Model:", model_options)
     
