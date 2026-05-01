@@ -161,23 +161,17 @@ if prompt_data:
         
         with st.chat_message("assistant"):
             reasoning_box = st.empty()
-            response_placeholder = st.empty()
-            
+            # 1. Inisialisasi generator
             generator = stream_openrouter(api_key, current_chat["messages"], selected_model, reasoning_box, enable_reasoning, token_placeholder)
             
-            full_response = ""
-            # full_reasoning hanya untuk display sementara, tidak disimpan
-            
-            # Handle structured stream
-            for chunk_type, chunk_content in generator:
-                if chunk_type == "reasoning":
-                    # Kita biarkan api_client yang mengupdate reasoning_box
-                    pass
-                else:
-                    full_response += chunk_content
-                    response_placeholder.markdown(full_response + "▌")
-            
-            response_placeholder.markdown(full_response)
+            # 2. Fungsi pembantu untuk mengambil hanya konten (bukan reasoning) untuk st.write_stream
+            def get_content_stream():
+                for chunk_type, chunk_content in generator:
+                    if chunk_type == "content":
+                        yield chunk_content
+
+            # 3. Stream jawaban akhir dengan efek mengetik otomatis
+            full_response = st.write_stream(get_content_stream())
             
             # SIMPAN HANYA KONTEN, TANPA REASONING
             current_chat["messages"].append({

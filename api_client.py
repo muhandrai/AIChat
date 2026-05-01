@@ -97,8 +97,10 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, reasoning_b
         
         # Container untuk proses berpikir agar lebih rapi
         reasoning_container = None
+        reasoning_placeholder = None
         if enable_reasoning:
             reasoning_container = reasoning_box.status("💭 Menghasilkan pemikiran...", expanded=True)
+            reasoning_placeholder = reasoning_container.empty()
 
         for chunk in stream:
             # 1. Statistik Penggunaan
@@ -118,7 +120,7 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, reasoning_b
             reasoning = getattr(delta, 'reasoning', None) or getattr(delta, 'reasoning_content', None)
             if reasoning and enable_reasoning:
                 thinking_text += reasoning
-                reasoning_container.markdown(thinking_text)
+                reasoning_placeholder.markdown(thinking_text)
                 yield ("reasoning", reasoning) # Kirim sinyal reasoning ke UI
             
             # 3. Tangkap Content (dengan penanganan tag <think> yang lebih kuat)
@@ -143,7 +145,7 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, reasoning_b
                             parts = pending_content.split("</think>", 1)
                             if parts[0] and enable_reasoning:
                                 thinking_text += parts[0]
-                                reasoning_container.markdown(thinking_text)
+                                reasoning_placeholder.markdown(thinking_text)
                                 yield ("reasoning", parts[0])
                             
                             in_content_think_block = False
@@ -154,7 +156,7 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, reasoning_b
                         else:
                             if enable_reasoning:
                                 thinking_text += pending_content
-                                reasoning_container.markdown(thinking_text)
+                                reasoning_placeholder.markdown(thinking_text)
                                 yield ("reasoning", pending_content)
                             pending_content = ""
 
