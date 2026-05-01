@@ -1,103 +1,18 @@
 import streamlit as st
 import os
-import re
-import sqlite3
 import uuid
-from datetime import datetime, UTC
 import PyPDF2
-from openai import OpenAI
 from dotenv import load_dotenv
+
+# Import local modules
+from database import init_db, load_chats_from_db, save_chat_to_db
+from api_client import generate_title_from_first_ai_response, stream_openrouter, AVAILABLE_MODELS
 
 load_dotenv()
 
 st.set_page_config(page_title="Multi-Provider AI Chat", page_icon="🤖", layout="wide")
 st.title("💬 Multi-Provider AI Chat")
 st.caption("A chat application that automatically routes processes based on the selected model with SQLite history.")
-
-DB_PATH = "chat_history.db"
-
-def get_db_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db() -> None:
-    with get_db_connection() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS chats (
-                id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                chat_id TEXT NOT NULL,
-                role TEXT NOT NULL,
-                content TEXT NOT NULL,
-                seq INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY(chat_id) REFERENCES chats(id)
-            )
-            """
-        )
-        conn.commit()
-
-def load_chats_from_db() -> tuple[dict, list]:
-    chats = {}
-    chat_order = []
-
-    with get_db_connection() as conn:
-        rows = conn.execute("SELECT id, title FROM chats ORDER BY updated_at DESC").fetchall()
-        for row in rows:
-            chat_id = row["id"]
-            chat_order.append(chat_id)
-            message_rows = conn.execute(
-                "SELECT role, content FROM messages WHERE chat_id = ? ORDER BY seq ASC",
-                (chat_id,),
-            ).fetchall()
-            chats[chat_id] = {
-                "title": row["title"],
-                "messages": [
-                    {"role": message["role"], "content": message["content"]}
-                    for message in message_rows
-                ],
-            }
-
-    return chats, chat_order
-
-def save_chat_to_db(chat_id: str, chat: dict) -> None:
-    now = datetime.now(UTC).isoformat()
-
-    with get_db_connection() as conn:
-        conn.execute(
-            """
-            INSERT INTO chats (id, title, created_at, updated_at)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                title = excluded.title,
-                updated_at = excluded.updated_at
-            """,
-            (chat_id, chat["title"], now, now),
-        )
-
-        conn.execute("DELETE FROM messages WHERE chat_id = ?", (chat_id,))
-
-        for seq, message in enumerate(chat["messages"], start=1):
-            conn.execute(
-                """
-                INSERT INTO messages (chat_id, role, content, seq, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (chat_id, message["role"], message["content"], seq, now),
-            )
-
-        conn.commit()
 
 def create_new_chat() -> None:
     chat_id = str(uuid.uuid4())
@@ -122,111 +37,18 @@ def initialize_session_state() -> None:
             st.session_state.chat_order = []
             create_new_chat()
 
-def generate_title_from_first_ai_response(api_key: str, base_url: str, model_name: str, response_text: str) -> str:
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    prompt = (
-        "Create a short title of at most 6 words for a conversation based on the following AI response. "
-        "Reply with the title only, without quotation marks.\n\n"
-        f"{response_text}"
-    )
-
-    try:
-        completion = client.chat.completions.create(
-            model=model_name,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        title = (completion.choices[0].message.content or "").strip()
-        return title[:80] if title else "New chat"
-    except Exception:
-        fallback = response_text.strip().splitlines()[0] if response_text.strip() else ""
-        return fallback[:40] + ("..." if len(fallback) > 40 else "") if fallback else "New chat"
-
-
-def stream_openrouter(api_key: str, messages: list, model_name: str, reasoning_box, enable_reasoning: bool, token_placeholder):
-    client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
-    
-    extra_body = {}
-    if enable_reasoning:
-        extra_body = {
-            "reasoning": {
-                "enabled": True,
-                "exclude": False,
-            }
-        }
-    
-    try:
-        stream = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            stream=True,
-            extra_body=extra_body if extra_body else None,
-            stream_options={"include_usage": True}
-        )
-        
-        thinking_text = ""
-        in_think_block = False
-        
-        for chunk in stream:
-            if getattr(chunk, 'usage', None) is not None:
-                if isinstance(chunk.usage, dict):
-                    st.session_state.total_tokens = chunk.usage.get("total_tokens", 0)
-                else:
-                    st.session_state.total_tokens = getattr(chunk.usage, "total_tokens", 0)
-                token_placeholder.metric("Total Tokens (Context)", f"{st.session_state.total_tokens:,}")
-
-            if not getattr(chunk, 'choices', None) or len(chunk.choices) == 0: 
-                continue
-                
-            delta = chunk.choices[0].delta
-            
-            # 1. Handle Native Reasoning (jika tersedia di delta)
-            reasoning = getattr(delta, 'reasoning', None)
-            if reasoning and enable_reasoning:
-                thinking_text += reasoning
-                reasoning_box.info(f"**💭 Thinking Process (OpenRouter):**\n\n{thinking_text}")
-            
-            # 2. Handle Content dengan filter tag <think>
-            content = getattr(delta, 'content', None)
-            if content:
-                # Logika sederhana filter <think> yang mungkin ada di dalam field content
-                if "<think>" in content:
-                    in_think_block = True
-                    parts = content.split("<think>")
-                    # Yield bagian sebelum <think> jika ada
-                    if parts[0]: yield parts[0]
-                    # Sisanya masuk ke thinking process logic (bisa diabaikan jika reasoning sudah 'aman')
-                
-                if "</think>" in content:
-                    in_think_block = False
-                    parts = content.split("</think>")
-                    # Yield bagian setelah </think> jika ada
-                    if len(parts) > 1 and parts[1]: yield parts[1]
-                    continue
-
-                if not in_think_block:
-                    yield content
-                    
-    except Exception as e:
-        st.error(f"OpenRouter API Error: {e}")
-        yield ""
-
+# Inisialisasi Database dan Session State
 init_db()
 initialize_session_state()
 
 current_chat = st.session_state.chats[st.session_state.active_chat_id]
 
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Chat Settings")
     
-    model_options = [
-        "meta-llama/llama-4-maverick",
-        "x-ai/grok-4.20",
-        "xiaomi/mimo-v2-pro",
-        "writer/palmyra-x5",
-        "minimax/minimax-m1",
-        "qwen/qwen-plus",
-        "google/gemini-2.5-flash",
-    ]
+    # Ambil daftar model dari api_client.py secara dinamis
+    model_options = list(AVAILABLE_MODELS.keys())
     selected_model = st.selectbox("Select Model:", model_options)
     
     provider = "OpenRouter"
@@ -269,6 +91,7 @@ with st.sidebar:
             st.session_state.total_tokens = 0
             st.rerun()
 
+# --- MAIN CHAT AREA ---
 if not api_key:
     st.info(f"💡 Please enter your API Key for {provider} in the sidebar to start.")
     st.stop()
@@ -328,21 +151,47 @@ if prompt_data:
                 st.caption(f"📎 File uploaded: {file.name}")
         
         current_chat["messages"].append({"role": "user", "content": final_prompt})
+        
+        # Pindahkan chat yang aktif ke urutan paling atas
+        if st.session_state.active_chat_id in st.session_state.chat_order:
+            st.session_state.chat_order.remove(st.session_state.active_chat_id)
+        st.session_state.chat_order.insert(0, st.session_state.active_chat_id)
+        
         save_chat_to_db(st.session_state.active_chat_id, current_chat)
         
         with st.chat_message("assistant"):
             reasoning_box = st.empty()
+            response_placeholder = st.empty()
             
             generator = stream_openrouter(api_key, current_chat["messages"], selected_model, reasoning_box, enable_reasoning, token_placeholder)
             
-            full_response = st.write_stream(generator)
+            full_response = ""
+            # full_reasoning hanya untuk display sementara, tidak disimpan
             
-            current_chat["messages"].append({"role": "assistant", "content": full_response})
+            # Handle structured stream
+            for chunk_type, chunk_content in generator:
+                if chunk_type == "reasoning":
+                    # Kita biarkan api_client yang mengupdate reasoning_box
+                    pass
+                else:
+                    full_response += chunk_content
+                    response_placeholder.markdown(full_response + "▌")
+            
+            response_placeholder.markdown(full_response)
+            
+            # SIMPAN HANYA KONTEN, TANPA REASONING
+            current_chat["messages"].append({
+                "role": "assistant", 
+                "content": full_response
+            })
             
             assistant_count = sum(1 for m in current_chat["messages"] if m["role"] == "assistant")
             if assistant_count == 1 and current_chat.get("title", "New chat") == "New chat" and full_response.strip():
-                new_title = generate_title_from_first_ai_response(api_key, base_url, selected_model, full_response)
-                current_chat["title"] = new_title
+                try:
+                    new_title = generate_title_from_first_ai_response(api_key, base_url, selected_model, full_response)
+                    current_chat["title"] = new_title
+                except Exception as e:
+                    st.error(f"Error generating title: {e}")
 
             save_chat_to_db(st.session_state.active_chat_id, current_chat)
             st.rerun()
