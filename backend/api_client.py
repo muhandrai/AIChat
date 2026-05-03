@@ -23,22 +23,19 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, enable_reas
         }
     )
 
-    # Ambil provider yang sesuai dari konfigurasi pusat
     allowed_providers = AVAILABLE_MODELS.get(model_name, [])
 
-    # Konfigurasi routing provider & reasoning
     extra_body: dict = {
         "provider": {
             "only": allowed_providers
         },
-        "include_reasoning": enable_reasoning
+        "include_reasoning": enable_reasoning,
     }
 
     if enable_reasoning:
-        extra_body["reasoning"] = {
-            "enabled": True,
-            "exclude": False,
-        }
+        extra_body["reasoning"] = {"enabled": True}  # Cara paling sederhana (Default)
+    else:
+        extra_body["reasoning"] = {"effort": "none"} # Mematikan total reasoning
 
     try:
         stream = client.chat.completions.create(
@@ -64,12 +61,10 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, enable_reas
 
             delta = chunk.choices[0].delta
 
-            # 2. Tangkap Native Reasoning
             reasoning = getattr(delta, 'reasoning', None) or getattr(delta, 'reasoning_content', None)
             if reasoning and enable_reasoning:
                 yield {"type": "reasoning", "content": reasoning}
 
-            # 3. Tangkap Content (dengan penanganan tag <think> yang lebih kuat)
             content = getattr(delta, 'content', None)
             if content:
                 pending_content = content
@@ -114,24 +109,20 @@ def generate_chat_title(api_key: str, ai_response: str, model_name: str) -> str:
         }
     )
 
-    # Gunakan system message untuk memaksa model tidak berpikir/reasoning
     messages = [
         {"role": "system", "content": "You are a concise title generator. Output ONLY the title. No reasoning, no explanation, no thinking, no introduction."},
         {"role": "user", "content": f"Title for: {ai_response}"}
     ]
 
-    # Ambil provider yang sesuai dari konfigurasi pusat
     allowed_providers = AVAILABLE_MODELS.get(model_name, [])
     
-    # Samakan struktur extra_body dengan stream_openrouter (reasoning dimatikan)
     extra_body = {
         "provider": {
             "only": allowed_providers
         },
         "include_reasoning": False,
         "reasoning": {
-            "enabled": False,
-            "exclude": True,
+            "effort": "none"
         }
     }
 

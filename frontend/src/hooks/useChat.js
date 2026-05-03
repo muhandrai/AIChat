@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 
-const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT || '8000';
-const API = `http://localhost:${BACKEND_PORT}`;
+const API = ''; // Menggunakan proxy Vite (diatur di vite.config.js)
 
 export function useChat() {
   const [chats, setChats] = useState([])          // [{id, title, message_count}]
