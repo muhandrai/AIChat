@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime, UTC
 
-DB_PATH = "chat_history.db"
+DB_PATH = "../chat_history.db"
 
 def get_db_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
@@ -85,4 +85,10 @@ def save_chat_to_db(chat_id: str, chat: dict) -> None:
                 (chat_id, message["role"], message["content"], seq, now),
             )
 
+        conn.commit()
+
+def delete_chat_from_db(chat_id: str) -> None:
+    with get_db_connection() as conn:
+        conn.execute("DELETE FROM messages WHERE chat_id = ?", (chat_id,))
+        conn.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
         conn.commit()

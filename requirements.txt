@@ -1,5 +1,0 @@
-streamlit
-openai
-tiktoken
-python-dotenv
-PyPDF2

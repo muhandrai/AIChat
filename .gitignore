@@ -1,19 +1,27 @@
-# Environment
+# ── Environment & Secrets ──────────────────────────────────────────────────────
 .env
+.env.local
+.env.*.local
+
+# ── Python ─────────────────────────────────────────────────────────────────────
 .venv/
 venv/
 env/
 ENV/
-
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.egg
+*.egg-info/
+MANIFEST
+.installed.cfg
 .Python
+
+# Build / dist (Python)
 build/
-develop-eggs/
 dist/
+develop-eggs/
 downloads/
 eggs/
 .eggs/
@@ -23,12 +31,8 @@ parts/
 sdist/
 var/
 wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
-# Pytest / Coverage
+# Testing / Coverage
 .cache
 .pytest_cache/
 .coverage
@@ -36,9 +40,8 @@ MANIFEST
 .htmlcov/
 nosetests.xml
 coverage.xml
-*.renpyc
 
-# Database files
+# ── Database ───────────────────────────────────────────────────────────────────
 *.db
 *.sqlite
 *.sqlite3
@@ -46,16 +49,21 @@ coverage.xml
 *.sqlite-journal
 *.wal
 *.shm
-db/
-database/
-data/
 
-# IDEs
+# ── Node / Frontend ────────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.cache/
+*.local
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+Desktop.ini
