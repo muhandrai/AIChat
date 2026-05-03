@@ -15,9 +15,10 @@ echo [+] Memulai Backend (FastAPI)...
 start "AndroAI Backend" cmd /k "cd backend && ..\.venv\Scripts\activate && uvicorn main:app --reload"
 
 :: Menjalankan Frontend di jendela yang sama (Preview mode)
-echo [+] Memulai Frontend (Preview)...
+echo [+] Memulai Frontend (Preview di port 5173)...
 cd frontend
-npm run preview
+npm run preview -- --port 5173
+
 
 pause
 
