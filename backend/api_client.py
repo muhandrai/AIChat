@@ -1,4 +1,4 @@
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 
 # Konfigurasi Model dan Provider yang diizinkan
 AVAILABLE_MODELS = {
@@ -7,49 +7,6 @@ AVAILABLE_MODELS = {
     "qwen/qwen3.6-plus": ["alibaba"],
     "google/gemini-2.5-flash": ["google-vertex/global"],
 }
-
-
-def generate_title_from_first_ai_response(api_key: str, base_url: str, model_name: str, response_text: str) -> str:
-    """
-    Menghasilkan judul singkat berdasarkan respons pertama AI menggunakan API.
-    """
-    try:
-        headers = {}
-        if "openrouter.ai" in base_url:
-            headers = {
-                "HTTP-Referer": "https://github.com/RanRod/ai-chat",
-                "X-Title": "AndroAI",
-            }
-
-        client = OpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            default_headers=headers
-        )
-
-        prompt = f"Summarize the following AI response into a very short, concise chat title (maximum 5 words). Do not use quotes or special characters:\n\n{response_text[:1000]}"
-
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": "You are AndroAI, a helpful assistant that generates short chat titles."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=20,
-            temperature=0.7
-        )
-
-        title = response.choices[0].message.content.strip()
-        # Bersihkan jika ada tanda kutip atau karakter aneh
-        title = title.replace('"', '').replace("'", "").replace("*", "").replace("#", "").strip()
-
-        return title if title else "New chat"
-
-    except Exception as e:
-        print(f"Error generating title: {e}")
-        # Fallback ke 5 kata pertama jika API gagal
-        words = response_text.split()[:5]
-        return " ".join(words) + "..." if words else "New chat"
 
 
 def stream_openrouter(api_key: str, messages: list, model_name: str, enable_reasoning: bool):
@@ -142,3 +99,33 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, enable_reas
 
     except Exception as e:
         yield {"type": "error", "content": str(e)}
+
+
+def generate_chat_title(api_key: str, ai_response: str, model_name: str) -> str:
+    """
+    Generates a concise title from the AI response.
+    """
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://openrouter.ai/api/v1",
+        default_headers={
+            "HTTP-Referer": "https://github.com/RanRod/ai-chat",
+            "X-Title": "AndroAI",
+        }
+    )
+
+    prompt = f"Summarize the following AI response into a very short, concise title (max 5 words). Output ONLY the title, no quotes or punctuation.\n\nAI Response: {ai_response}"
+
+    try:
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=20,
+        )
+        title = response.choices[0].message.content.strip()
+        # Clean up title
+        title = title.strip('"').strip("'").strip(".")
+        return title
+    except Exception as e:
+        print(f"Error generating title: {e}")
+        return "New chat"

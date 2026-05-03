@@ -11,7 +11,7 @@ from typing import Optional
 from dotenv import load_dotenv
 
 from database import init_db, load_chats_from_db, save_chat_to_db, delete_chat_from_db
-from api_client import stream_openrouter, generate_title_from_first_ai_response, AVAILABLE_MODELS
+from api_client import stream_openrouter, AVAILABLE_MODELS, generate_chat_title
 
 load_dotenv(dotenv_path="../.env")
 
@@ -184,21 +184,12 @@ async def send_message(chat_id: str, body: SendMessageRequest):
         if full_response.strip():
             chats_store[chat_id]["messages"].append({"role": "assistant", "content": full_response})
 
-            # Auto-generate title on first assistant response
-            assistant_count = sum(1 for m in chats_store[chat_id]["messages"] if m["role"] == "assistant")
-            if assistant_count == 1 and chats_store[chat_id].get("title", "New chat") == "New chat":
-                try:
-                    new_title = generate_title_from_first_ai_response(
-                        api_key,
-                        "https://openrouter.ai/api/v1",
-                        body.model,
-                        full_response
-                    )
-                    chats_store[chat_id]["title"] = new_title
-                    title_data = json.dumps({"type": "title_update", "content": new_title})
-                    yield f"data: {title_data}\n\n"
-                except Exception:
-                    pass
+            # Auto-generate title if it's still "New chat"
+            if chats_store[chat_id]["title"] == "New chat":
+                new_title = generate_chat_title(api_key, full_response, body.model)
+                chats_store[chat_id]["title"] = new_title
+                # Notify frontend about title change
+                yield f"data: {json.dumps({'type': 'title_update', 'content': new_title})}\n\n"
 
             save_chat_to_db(chat_id, chats_store[chat_id])
 
