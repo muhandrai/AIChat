@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 
-const API = 'http://localhost:8000'
+const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT || '8000';
+const API = `http://localhost:${BACKEND_PORT}`;
 
 export function useChat() {
   const [chats, setChats] = useState([])          // [{id, title, message_count}]
