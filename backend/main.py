@@ -186,6 +186,7 @@ async def send_message(chat_id: str, body: SendMessageRequest):
 
             # Auto-generate title if it's still "New chat"
             if chats_store[chat_id]["title"] == "New chat":
+                # Gunakan jawaban pertama AI sebagai konteks judul
                 new_title = generate_chat_title(api_key, full_response, body.model)
                 chats_store[chat_id]["title"] = new_title
                 # Notify frontend about title change

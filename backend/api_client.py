@@ -114,18 +114,43 @@ def generate_chat_title(api_key: str, ai_response: str, model_name: str) -> str:
         }
     )
 
-    prompt = f"Summarize the following AI response into a very short, concise title (max 5 words). Output ONLY the title, no quotes or punctuation.\n\nAI Response: {ai_response}"
+    # Gunakan system message untuk memaksa model tidak berpikir/reasoning
+    messages = [
+        {"role": "system", "content": "You are a concise title generator. Output ONLY the title. No reasoning, no explanation, no thinking, no introduction."},
+        {"role": "user", "content": f"Title for: {ai_response}"}
+    ]
+
+    # Ambil provider yang sesuai dari konfigurasi pusat
+    allowed_providers = AVAILABLE_MODELS.get(model_name, [])
+    
+    # Samakan struktur extra_body dengan stream_openrouter (reasoning dimatikan)
+    extra_body = {
+        "provider": {
+            "only": allowed_providers
+        },
+        "include_reasoning": False,
+        "reasoning": {
+            "enabled": False,
+            "exclude": True,
+        }
+    }
 
     try:
         response = client.chat.completions.create(
             model=model_name,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=20,
+            messages=messages,
+            max_tokens=50,
+            extra_body=extra_body
         )
-        title = response.choices[0].message.content.strip()
-        # Clean up title
-        title = title.strip('"').strip("'").strip(".")
-        return title
-    except Exception as e:
-        print(f"Error generating title: {e}")
+        
+        content = response.choices[0].message.content
+        if content:
+            title = content.strip().strip('"').strip("'").strip(".")
+            if title.lower().startswith("title:"):
+                title = title[6:].strip()
+            
+            return title.strip()
+            
+        return "New chat"
+    except Exception:
         return "New chat"
