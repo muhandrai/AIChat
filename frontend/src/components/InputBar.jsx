@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { Paperclip, Send, X, FileText, Square, Loader2 } from 'lucide-react'
+import { Paperclip, Send, X, FileText, Square, Loader2, UploadCloud } from 'lucide-react'
 
 export default function InputBar({ onSend, onStop, isStreaming, uploadFile, prefillText, onPrefillConsumed }) {
   const [text, setText] = useState('')
@@ -13,6 +13,7 @@ export default function InputBar({ onSend, onStop, isStreaming, uploadFile, pref
   }, [prefillText, onPrefillConsumed])
   const [files, setFiles] = useState([]) // [{name, content}]
   const [uploading, setUploading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
 
@@ -28,6 +29,11 @@ export default function InputBar({ onSend, onStop, isStreaming, uploadFile, pref
   const handleFileChange = async (e) => {
     const selected = Array.from(e.target.files || [])
     if (!selected.length) return
+    await processFiles(selected)
+    e.target.value = ''
+  }
+
+  const processFiles = async (selected) => {
     setUploading(true)
     try {
       const results = await Promise.all(selected.map(f => uploadFile(f)))
@@ -36,8 +42,34 @@ export default function InputBar({ onSend, onStop, isStreaming, uploadFile, pref
       console.error('upload error', err)
     } finally {
       setUploading(false)
-      e.target.value = ''
     }
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isStreaming && !uploading) {
+      setIsDragging(true)
+    }
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    if (isStreaming || uploading) return
+
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    if (!droppedFiles.length) return
+
+    await processFiles(droppedFiles)
   }
 
   const removeFile = (idx) => setFiles(prev => prev.filter((_, i) => i !== idx))
@@ -85,7 +117,20 @@ export default function InputBar({ onSend, onStop, isStreaming, uploadFile, pref
             ))}
           </div>
         )}
-        <div className="input-box">
+        <div 
+          className={`input-box ${isDragging ? 'dragging' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {isDragging && (
+            <div className="drag-overlay">
+              <div className="drag-overlay-icon">
+                <UploadCloud size={24} />
+              </div>
+              <span>Drop files here to attach</span>
+            </div>
+          )}
           <label className="input-btn attach-btn" title="Attach file">
             {uploading ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}
             <input

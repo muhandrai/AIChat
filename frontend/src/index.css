@@ -959,3 +959,48 @@ html, body, #root {
   .message-row { padding: 6px 14px; }
   .input-area { padding: 12px 14px 16px; }
 }
+
+/* Drag and Drop Styles */
+.input-box.dragging {
+  border-color: var(--accent-1);
+  background: rgba(124, 58, 237, 0.08);
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);
+  transform: translateY(-2px);
+}
+
+.drag-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 8, 15, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24px;
+  z-index: 50;
+  pointer-events: none;
+  border: 2px dashed var(--accent-1);
+  color: var(--accent-2);
+  font-weight: 600;
+  font-size: 15px;
+  gap: 12px;
+  animation: fade-in-scale 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.drag-overlay-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: var(--shadow-glow);
+}
+
+@keyframes fade-in-scale {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
