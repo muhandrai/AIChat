@@ -9,14 +9,14 @@ AVAILABLE_MODELS = {
 }
 
 
-def stream_openrouter(api_key: str, messages: list, model_name: str, enable_reasoning: bool):
+async def stream_openrouter(api_key: str, messages: list, model_name: str, enable_reasoning: bool):
     """
-    Pure Python generator yang yield dict: {"type": "reasoning"|"content"|"usage", "content": str}
-    Tidak ada dependensi Streamlit sama sekali.
+    Async generator yang yield dict: {"type": "reasoning"|"content"|"usage", "content": str}
     """
-    client = OpenAI(
+    client = AsyncOpenAI(
         api_key=api_key,
         base_url="https://openrouter.ai/api/v1",
+        timeout=600.0, # Timeout 10 menit untuk mencegah AFK/Timeout
         default_headers={
             "HTTP-Referer": "https://github.com/RanRod/ai-chat",
             "X-Title": "AndroAI",
@@ -33,12 +33,12 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, enable_reas
     }
 
     if enable_reasoning:
-        extra_body["reasoning"] = {"enabled": True}  # Cara paling sederhana (Default)
+        extra_body["reasoning"] = {"enabled": True}
     else:
-        extra_body["reasoning"] = {"effort": "none"} # Mematikan total reasoning
+        extra_body["reasoning"] = {"effort": "none"}
 
     try:
-        stream = client.chat.completions.create(
+        stream = await client.chat.completions.create(
             model=model_name,
             messages=messages,
             stream=True,
@@ -48,7 +48,7 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, enable_reas
 
         in_content_think_block = False
 
-        for chunk in stream:
+        async for chunk in stream:
             # 1. Statistik Penggunaan
             if hasattr(chunk, 'usage') and chunk.usage:
                 usage_data = chunk.usage
@@ -96,13 +96,14 @@ def stream_openrouter(api_key: str, messages: list, model_name: str, enable_reas
         yield {"type": "error", "content": str(e)}
 
 
-def generate_chat_title(api_key: str, ai_response: str, model_name: str) -> str:
+async def generate_chat_title(api_key: str, ai_response: str, model_name: str) -> str:
     """
     Generates a concise title from the AI response.
     """
-    client = OpenAI(
+    client = AsyncOpenAI(
         api_key=api_key,
         base_url="https://openrouter.ai/api/v1",
+        timeout=30.0,
         default_headers={
             "HTTP-Referer": "https://github.com/RanRod/ai-chat",
             "X-Title": "AndroAI",
@@ -127,7 +128,7 @@ def generate_chat_title(api_key: str, ai_response: str, model_name: str) -> str:
     }
 
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model=model_name,
             messages=messages,
             max_tokens=50,

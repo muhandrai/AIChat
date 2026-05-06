@@ -1,5 +1,6 @@
 import uuid
 import json
+import asyncio
 import os
 import io
 import PyPDF2
@@ -162,7 +163,22 @@ async def send_message(chat_id: str, body: SendMessageRequest):
         reasoning_text = ""
 
         try:
-            for chunk in stream_openrouter(api_key, chats_store[chat_id]["messages"], body.model, body.enable_reasoning):
+            gen = stream_openrouter(api_key, chats_store[chat_id]["messages"], body.model, body.enable_reasoning)
+            
+            while True:
+                try:
+                    # Tunggu chunk selama 20 detik, jika tidak ada kirim keep-alive
+                    chunk = await asyncio.wait_for(gen.__anext__(), timeout=20)
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"
+                    continue
+                except StopAsyncIteration:
+                    break
+                except Exception as e:
+                    data = json.dumps({"type": "error", "content": str(e)})
+                    yield f"data: {data}\n\n"
+                    return
+
                 chunk_type = chunk.get("type")
                 chunk_content = chunk.get("content", "")
 
@@ -190,7 +206,7 @@ async def send_message(chat_id: str, body: SendMessageRequest):
             # Auto-generate title if it's still "New chat"
             if chats_store[chat_id]["title"] == "New chat":
                 # Gunakan jawaban pertama AI sebagai konteks judul
-                new_title = generate_chat_title(api_key, full_response, body.model)
+                new_title = await generate_chat_title(api_key, full_response, body.model)
                 chats_store[chat_id]["title"] = new_title
                 # Notify frontend about title change
                 yield f"data: {json.dumps({'type': 'title_update', 'content': new_title})}\n\n"
