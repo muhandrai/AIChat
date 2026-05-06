@@ -149,6 +149,13 @@ export function useChat() {
     }
   }, [activeChatId, isStreaming, loadChats])
 
+  const stopStreaming = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort()
+      setIsStreaming(false)
+    }
+  }, [])
+
   /* ── Upload file ────────────────────────────────────────────────────────── */
   const uploadFile = useCallback(async (file) => {
     const form = new FormData()
@@ -173,6 +180,6 @@ export function useChat() {
     chats, activeChatId, messages, isStreaming,
     streamingContent, streamingReasoning, totalTokens,
     loadChats, loadMessages, createChat, deleteChat,
-    sendMessage, uploadFile, getModels,
+    sendMessage, stopStreaming, uploadFile, getModels,
   }
 }

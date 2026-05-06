@@ -11,7 +11,7 @@ export default function App() {
     chats, activeChatId, messages, isStreaming,
     streamingContent, streamingReasoning, totalTokens,
     loadChats, loadMessages, createChat, deleteChat,
-    sendMessage, uploadFile, getModels,
+    sendMessage, stopStreaming, uploadFile, getModels,
   } = useChat()
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -148,6 +148,7 @@ export default function App() {
         {/* Input */}
         <InputBar
           onSend={handleSend}
+          onStop={stopStreaming}
           isStreaming={isStreaming}
           uploadFile={uploadFile}
           prefillText={prefillText}

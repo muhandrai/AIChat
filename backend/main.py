@@ -17,13 +17,11 @@ load_dotenv(dotenv_path="../.env")
 
 app = FastAPI(title="AndroAI API", version="1.0.0")
 
-FRONTEND_PORT = os.getenv("FRONTEND_PORT", "5173")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        f"http://localhost:{FRONTEND_PORT}",
-        f"http://127.0.0.1:{FRONTEND_PORT}"
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
     ],
     allow_credentials=True,
     allow_methods=["*"],

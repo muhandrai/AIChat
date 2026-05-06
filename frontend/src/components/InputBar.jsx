@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
-import { Paperclip, Send, X, FileText } from 'lucide-react'
+import { Paperclip, Send, X, FileText, Square, Loader2 } from 'lucide-react'
 
-export default function InputBar({ onSend, isStreaming, uploadFile, prefillText, onPrefillConsumed }) {
+export default function InputBar({ onSend, onStop, isStreaming, uploadFile, prefillText, onPrefillConsumed }) {
   const [text, setText] = useState('')
 
   useEffect(() => {
@@ -21,7 +21,8 @@ export default function InputBar({ onSend, isStreaming, uploadFile, prefillText,
     const ta = textareaRef.current
     if (!ta) return
     ta.style.height = 'auto'
-    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px'
+    const newHeight = Math.min(ta.scrollHeight, 200)
+    ta.style.height = newHeight + 'px'
   }, [text])
 
   const handleFileChange = async (e) => {
@@ -75,10 +76,10 @@ export default function InputBar({ onSend, isStreaming, uploadFile, prefillText,
           <div className="file-previews">
             {files.map((f, i) => (
               <div key={i} className="file-preview-chip">
-                <FileText size={12} />
-                <span>{f.filename}</span>
+                <FileText size={14} />
+                <span className="file-preview-name">{f.filename}</span>
                 <button className="file-preview-remove" onClick={() => removeFile(i)}>
-                  <X size={12} />
+                  <X size={14} />
                 </button>
               </div>
             ))}
@@ -86,7 +87,7 @@ export default function InputBar({ onSend, isStreaming, uploadFile, prefillText,
         )}
         <div className="input-box">
           <label className="input-btn attach-btn" title="Attach file">
-            <Paperclip size={17} />
+            {uploading ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}
             <input
               ref={fileInputRef}
               type="file"
@@ -101,30 +102,36 @@ export default function InputBar({ onSend, isStreaming, uploadFile, prefillText,
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={uploading ? 'Uploading file...' : 'Ask anything... (Shift+Enter for newline)'}
+            placeholder={uploading ? 'Uploading file...' : 'Ask anything...'}
             disabled={isStreaming}
             rows={1}
             id="chat-input"
           />
-          <button
-            className="input-btn send-btn"
-            onClick={handleSend}
-            disabled={isStreaming || (!text.trim() && files.length === 0)}
-            title="Send"
-            id="send-btn"
-          >
-            <Send size={16} />
-          </button>
+          {isStreaming ? (
+            <button
+              className="input-btn stop-btn"
+              onClick={onStop}
+              title="Stop generating"
+              id="stop-btn"
+            >
+              <Square size={16} fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              className="input-btn send-btn"
+              onClick={handleSend}
+              disabled={!text.trim() && files.length === 0}
+              title="Send"
+              id="send-btn"
+            >
+              <Send size={18} />
+            </button>
+          )}
         </div>
         <div className="input-footer">
-          AI can make mistakes — verify important information.
+          <p>AI can make mistakes. Consider checking important information.</p>
         </div>
       </div>
     </div>
   )
-}
-
-// Expose setText externally via ref pattern — just export helper
-export function prefillInput(ref, value) {
-  if (ref?.current) ref.current.value = value
 }
