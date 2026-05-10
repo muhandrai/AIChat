@@ -10,11 +10,27 @@ const SUGGESTIONS = [
 ]
 
 export default function ChatWindow({ messages, isStreaming, streamingContent, streamingReasoning, onSuggestion }) {
+  const windowRef = useRef(null)
   const bottomRef = useRef(null)
+  const prevMessagesLength = useRef(messages.length)
+  const prevMessages = useRef(messages)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent, streamingReasoning])
+    if (!windowRef.current) return
+
+    const hasNewMessage = messages.length > prevMessagesLength.current
+    const lastMessageIsUser = messages[messages.length - 1]?.role === 'user'
+    const isDifferentChat = messages !== prevMessages.current && messages.length > 0
+    
+    if ((hasNewMessage && lastMessageIsUser) || isDifferentChat) {
+      bottomRef.current?.scrollIntoView({ 
+        behavior: isDifferentChat ? 'auto' : 'smooth' 
+      })
+    }
+    
+    prevMessagesLength.current = messages.length
+    prevMessages.current = messages
+  }, [messages, isStreaming])
 
   if (messages.length === 0 && !isStreaming) {
     return (
@@ -40,7 +56,7 @@ export default function ChatWindow({ messages, isStreaming, streamingContent, st
   }
 
   return (
-    <div className="chat-window">
+    <div className="chat-window" ref={windowRef}>
       <div className="chat-messages-inner">
         {messages.map((msg, i) => (
           <MessageBubble key={i} message={msg} />
