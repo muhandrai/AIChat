@@ -1,70 +1,114 @@
-# AndroAI - AI Chat Application
+# AndroAI
 
-Aplikasi chat AI modern yang dibangun dengan FastAPI (Backend) dan React + Vite (Frontend).
+Aplikasi chat AI dengan dukungan multi-model melalui OpenRouter. Dibangun dengan FastAPI (backend) dan React + Vite (frontend).
 
-## Struktur Project
-- `/backend`: API server menggunakan FastAPI dan SQLite.
-- `/frontend`: Interface pengguna menggunakan React, Vite, dan Framer Motion.
+## Fitur
 
----
+- **Multi-Model** — DeepSeek V4 Pro/Flash, Qwen 3.6 Plus, Gemini 2.5 Flash
+- **Streaming** — Jawaban AI muncul secara real-time via SSE
+- **Reasoning** — Toggle untuk menampilkan proses berpikir model (chain-of-thought)
+- **File Upload** — Upload dan baca file PDF atau teks langsung di chat
+- **Chat History** — Riwayat percakapan tersimpan di SQLite lokal
+- **Auto Title** — Judul chat otomatis di-generate dari respons AI pertama
+- **Modern UI** — Animasi halus dengan Framer Motion, markdown rendering, syntax highlighting
 
 ## Prasyarat
-Pastikan Anda sudah menginstal:
+
 - [Python 3.10+](https://www.python.org/)
-- [Node.js](https://nodejs.org/)
+- [Node.js 18+](https://nodejs.org/)
+- API Key dari [OpenRouter](https://openrouter.ai/)
 
----
+## Struktur Project
 
-## 1. Persiapan Backend
-Masuk ke direktori backend dan siapkan virtual environment.
-
-```powershell
-# Masuk ke folder backend
-cd backend
-
-# Buat virtual environment (jika belum ada)
-py -m venv .venv
-
-# Aktifkan virtual environment
-.\.venv\Scripts\Activate.ps1
-
-# Instal dependensi
-pip install -r requirements.txt
+```
+ai-chat/
+├── backend/
+│   ├── main.py            # FastAPI server & endpoints
+│   ├── api_client.py      # OpenRouter streaming client & model config
+│   ├── database.py        # SQLite database layer
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── components/    # ChatWindow, InputBar, Sidebar, dll.
+│   │   └── hooks/         # useChat hook
+│   ├── package.json
+│   └── vite.config.js
+├── .env                   # API key (tidak di-commit)
+└── README.md
 ```
 
-### Konfigurasi `.env`
-Buat file `.env` di **folder root** project dan tambahkan API Key Anda:
+## Setup & Menjalankan
+
+### 1. Konfigurasi Environment
+
+Buat file `.env` di **root project**:
+
 ```env
 OPENROUTER_API_KEY=your_api_key_here
 ```
 
-### Menjalankan Backend
+### 2. Backend
+
 ```powershell
+# Buat virtual environment
+python -m venv backend/venv
+
+# Aktifkan virtual environment
+backend\venv\Scripts\Activate.ps1
+
+# Install dependensi
+pip install -r backend/requirements.txt
+
+# Jalankan server
+cd backend
 uvicorn main:app --reload
 ```
-Server akan berjalan di `http://127.0.0.1:8000`.
 
----
+Backend berjalan di `http://localhost:8000`.
 
-## 2. Persiapan Frontend
-Buka terminal baru dan masuk ke direktori frontend.
+### 3. Frontend
+
+Buka terminal baru:
 
 ```powershell
-# Masuk ke folder frontend
 cd frontend
 
-# Instal dependensi (hanya pertama kali)
+# Install dependensi (pertama kali saja)
 npm install
 
-# Jalankan aplikasi
+# Jalankan dev server
 npm run dev
 ```
-Aplikasi akan berjalan di `http://localhost:5173`.
 
----
+Frontend berjalan di `http://localhost:5173`.
 
-## Fitur Utama
-- **Real-time Streaming**: Jawaban AI muncul secara streaming menggunakan SSE.
-- **File Upload**: Mendukung pembacaan file PDF dan teks.
-- **Chat History**: Semua percakapan tersimpan di database lokal (SQLite).
-- **Modern UI**: Desain premium dengan animasi halus menggunakan Framer Motion.
+### Catatan
+
+- Jalankan **backend terlebih dahulu**, lalu frontend.
+- Kedua server harus berjalan bersamaan di terminal terpisah.
+- Vite otomatis mem-proxy request `/api` ke backend di port 8000.
+
+## Model yang Tersedia
+
+| Model | Provider |
+|---|---|
+| `deepseek/deepseek-v4-pro` | DeepSeek |
+| `deepseek/deepseek-v4-flash` | DeepSeek |
+| `qwen/qwen3.6-plus` | Alibaba |
+| `google/gemini-2.5-flash` | Google Vertex |
+
+Model dapat diubah di `backend/api_client.py` pada variabel `AVAILABLE_MODELS`.
+
+## API Endpoints
+
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `GET` | `/api/models` | Daftar model yang tersedia |
+| `GET` | `/api/chats` | Semua chat |
+| `POST` | `/api/chats` | Buat chat baru |
+| `DELETE` | `/api/chats/{id}` | Hapus chat |
+| `GET` | `/api/chats/{id}/messages` | Pesan dalam chat |
+| `POST` | `/api/chats/{id}/messages` | Kirim pesan (SSE streaming) |
+| `PUT` | `/api/chats/{id}/title` | Update judul chat |
+| `POST` | `/api/upload` | Upload file (PDF/teks) |
