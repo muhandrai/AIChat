@@ -4,8 +4,6 @@ from openai import OpenAI, AsyncOpenAI
 AVAILABLE_MODELS = {
     "deepseek/deepseek-v4-pro": ["deepseek"],
     "deepseek/deepseek-v4-flash": ["deepseek"],
-    "qwen/qwen3.6-plus": ["alibaba"],
-    "google/gemini-2.5-flash": ["google-vertex/global"],
 }
 
 
