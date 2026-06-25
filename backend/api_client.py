@@ -3,8 +3,8 @@ import json
 
 # Konfigurasi Model dan Provider yang diizinkan
 AVAILABLE_MODELS = {
-    "deepseek/deepseek-v4-pro": ["deepseek"],
     "deepseek/deepseek-v4-flash": ["deepseek"],
+    "deepseek/deepseek-v4-pro": ["deepseek"],
 }
 
 # Sesuai enum ReasoningEffort pada dokumentasi OpenRouter POST /responses

@@ -4,6 +4,7 @@ import asyncio
 import os
 import io
 import PyPDF2
+import pandas as pd
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -131,10 +132,16 @@ async def upload_file(file: UploadFile = File(...)):
         if ext == "pdf":
             reader = PyPDF2.PdfReader(io.BytesIO(raw))
             text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+        elif ext in ("csv", "tsv"):
+            sep = "\t" if ext == "tsv" else ","
+            df = pd.read_csv(io.BytesIO(raw), sep=sep)
+            text = df.to_markdown(index=False)
         else:
-            text = raw.decode("utf-8", errors="replace")
+            raise HTTPException(status_code=400, detail=f"Unsupported file type: .{ext}")
 
         return {"filename": filename, "content": text}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

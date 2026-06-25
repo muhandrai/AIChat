@@ -137,7 +137,7 @@ export default function InputBar({ onSend, onStop, isStreaming, uploadFile, pref
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".pdf,.txt,.json,.csv,.tsv"
+              accept=".pdf,.csv,.tsv"
               onChange={handleFileChange}
               disabled={isStreaming || uploading}
             />
