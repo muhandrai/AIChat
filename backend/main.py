@@ -8,11 +8,10 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional
 from dotenv import load_dotenv
 
 from database import init_db, load_chats_from_db, save_chat_to_db, delete_chat_from_db
-from api_client import stream_openrouter, AVAILABLE_MODELS, generate_chat_title
+from api_client import stream_openrouter, AVAILABLE_MODELS, REASONING_EFFORTS, generate_chat_title
 
 load_dotenv(dotenv_path="../.env")
 
@@ -51,7 +50,7 @@ _reload_store()
 class SendMessageRequest(BaseModel):
     content: str
     model: str
-    enable_reasoning: bool = False
+    reasoning_effort: str = "none"
 
 class UpdateTitleRequest(BaseModel):
     title: str
@@ -149,6 +148,15 @@ async def send_message(chat_id: str, body: SendMessageRequest):
     if not api_key:
         raise HTTPException(status_code=500, detail="OPENROUTER_API_KEY not set")
 
+    # Validasi terhadap model & enum effort yang didukung dokumentasi
+    if body.model not in AVAILABLE_MODELS:
+        raise HTTPException(status_code=400, detail=f"Unsupported model: {body.model}")
+    if body.reasoning_effort not in REASONING_EFFORTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid reasoning_effort: {body.reasoning_effort}",
+        )
+
     # Append user message
     chats_store[chat_id]["messages"].append({"role": "user", "content": body.content})
 
@@ -162,58 +170,50 @@ async def send_message(chat_id: str, body: SendMessageRequest):
     # SSE Streaming generator
     async def event_generator():
         full_response = ""
-        reasoning_text = ""
+        interrupted = False
 
         try:
-            gen = stream_openrouter(api_key, chats_store[chat_id]["messages"], body.model, body.enable_reasoning)
-            
-            while True:
-                try:
-                    # Tunggu chunk selama 20 detik, jika tidak ada kirim keep-alive
-                    chunk = await asyncio.wait_for(gen.__anext__(), timeout=20)
-                except asyncio.TimeoutError:
-                    yield ": keep-alive\n\n"
-                    continue
-                except StopAsyncIteration:
-                    break
-                except Exception as e:
-                    data = json.dumps({"type": "error", "content": str(e)})
-                    yield f"data: {data}\n\n"
-                    return
-
+            async for chunk in stream_openrouter(
+                api_key, chats_store[chat_id]["messages"], body.model, body.reasoning_effort
+            ):
                 chunk_type = chunk.get("type")
                 chunk_content = chunk.get("content", "")
 
                 if chunk_type == "content":
                     full_response += chunk_content
+                    yield f"data: {json.dumps({'type': 'content', 'content': chunk_content})}\n\n"
                 elif chunk_type == "reasoning":
-                    reasoning_text += chunk_content
+                    # Status saja: model sedang bernalar. Konten reasoning tidak
+                    # diteruskan ke klien maupun disimpan ke database.
+                    yield f"data: {json.dumps({'type': 'reasoning'})}\n\n"
+                elif chunk_type == "usage":
+                    yield f"data: {json.dumps({'type': 'usage', 'content': chunk_content})}\n\n"
                 elif chunk_type == "error":
-                    data = json.dumps({"type": "error", "content": chunk_content})
-                    yield f"data: {data}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'content': chunk_content})}\n\n"
                     return
 
-                data = json.dumps({"type": chunk_type, "content": chunk_content})
-                yield f"data: {data}\n\n"
-
+        except asyncio.CancelledError:
+            # Client disconnected (Stop button / navigation): persist partial output below
+            interrupted = True
         except Exception as e:
-            data = json.dumps({"type": "error", "content": str(e)})
-            yield f"data: {data}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
             return
 
-        # Save assistant message
+        # Persist whatever was generated (covers both normal completion and abort)
         if full_response.strip():
             chats_store[chat_id]["messages"].append({"role": "assistant", "content": full_response})
 
-            # Auto-generate title if it's still "New chat"
-            if chats_store[chat_id]["title"] == "New chat":
-                # Gunakan jawaban pertama AI sebagai konteks judul
+            # Only auto-title on a clean completion (title gen needs a network call)
+            if not interrupted and chats_store[chat_id]["title"] == "New chat":
                 new_title = await generate_chat_title(api_key, full_response, body.model)
                 chats_store[chat_id]["title"] = new_title
-                # Notify frontend about title change
                 yield f"data: {json.dumps({'type': 'title_update', 'content': new_title})}\n\n"
 
             save_chat_to_db(chat_id, chats_store[chat_id])
+
+        if interrupted:
+            # Re-raise so the ASGI server cleanly finalizes the cancelled response
+            raise asyncio.CancelledError()
 
         yield "data: [DONE]\n\n"
 

@@ -3,8 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { Copy, Check, Bot, User, Paperclip } from 'lucide-react'
-import ReasoningPanel from './ReasoningPanel'
+import { Copy, Check, Bot, User, Paperclip, Brain } from 'lucide-react'
 
 function CodeBlock({ language, children }) {
   const [copied, setCopied] = useState(false)
@@ -55,7 +54,6 @@ const markdownComponents = {
   },
 }
 
-/* ── Typing indicator ─────────────────────────────────────────────────────── */
 function TypingIndicator() {
   return (
     <div className="typing-indicator">
@@ -66,11 +64,18 @@ function TypingIndicator() {
   )
 }
 
-/* ── Single message bubble ────────────────────────────────────────────────── */
+function ReasoningStatus() {
+  return (
+    <div className="reasoning-status">
+      <Brain size={14} className="reasoning-status-icon" />
+      <span>Reasoning...</span>
+    </div>
+  )
+}
+
 function MessageBubble({ message }) {
   const isUser = message.role === 'user'
 
-  // Separate file annotations from visible text
   let displayText = message.content
   let hasFile = false
   if (isUser && displayText.includes('\n--- Document Content:')) {
@@ -104,25 +109,24 @@ function MessageBubble({ message }) {
   )
 }
 
-/* ── Streaming assistant row ─────────────────────────────────────────────── */
-export function StreamingMessage({ content, reasoning }) {
-  const showTyping = !content && !reasoning
+export function StreamingMessage({ content, isReasoning }) {
   return (
     <div className="message-row assistant">
       <div className="avatar assistant">
         <Bot size={16} color="#a855f7" />
       </div>
       <div className="message-content-wrap">
-        {reasoning && <ReasoningPanel reasoning={reasoning} isStreaming={!content} />}
-        {showTyping ? (
-          <TypingIndicator />
-        ) : content ? (
+        {content ? (
           <div className="bubble assistant stream-cursor">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {content}
             </ReactMarkdown>
           </div>
-        ) : null}
+        ) : isReasoning ? (
+          <ReasoningStatus />
+        ) : (
+          <TypingIndicator />
+        )}
       </div>
     </div>
   )

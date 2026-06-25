@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-openai
+httpx
 python-dotenv
 PyPDF2
 python-multipart

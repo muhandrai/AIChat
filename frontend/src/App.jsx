@@ -9,7 +9,7 @@ import InputBar from './components/InputBar'
 export default function App() {
   const {
     chats, activeChatId, messages, isStreaming,
-    streamingContent, streamingReasoning, totalTokens,
+    streamingContent, isReasoning, totalTokens, usageDetails,
     loadChats, loadMessages, createChat, deleteChat,
     sendMessage, stopStreaming, uploadFile, getModels,
   } = useChat()
@@ -17,7 +17,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [models, setModels] = useState([])
   const [selectedModel, setSelectedModel] = useState('')
-  const [enableReasoning, setEnableReasoning] = useState(false)
+  const [reasoningEffort, setReasoningEffort] = useState('none')
   const [prefillText, setPrefillText] = useState('')
   const inputRef = useRef(null)
 
@@ -50,7 +50,7 @@ export default function App() {
   const handleSend = async (content) => {
     if (!selectedModel) { toast.error('Please select a model'); return }
     try {
-      await sendMessage(content, selectedModel, enableReasoning)
+      await sendMessage(content, selectedModel, reasoningEffort)
     } catch (e) {
       toast.error('Failed to send message: ' + e.message)
     }
@@ -108,13 +108,14 @@ export default function App() {
           activeChatId={activeChatId}
           models={models}
           selectedModel={selectedModel}
-          enableReasoning={enableReasoning}
+          reasoningEffort={reasoningEffort}
           totalTokens={totalTokens}
+          usageDetails={usageDetails}
           onNewChat={handleNewChat}
           onSelectChat={handleSelectChat}
           onDeleteChat={handleDeleteChat}
           onModelChange={setSelectedModel}
-          onReasoningToggle={setEnableReasoning}
+          onReasoningChange={setReasoningEffort}
         />
       </div>
 
@@ -141,7 +142,7 @@ export default function App() {
           messages={messages}
           isStreaming={isStreaming}
           streamingContent={streamingContent}
-          streamingReasoning={streamingReasoning}
+          isReasoning={isReasoning}
           onSuggestion={handleSuggestion}
         />
 

@@ -1,8 +1,8 @@
 import { Sparkles, Plus, Trash2, MessageSquare } from 'lucide-react'
 
 export default function Sidebar({
-  chats, activeChatId, models, selectedModel, enableReasoning, totalTokens,
-  onNewChat, onSelectChat, onDeleteChat, onModelChange, onReasoningToggle,
+  chats, activeChatId, models, selectedModel, reasoningEffort, totalTokens, usageDetails,
+  onNewChat, onSelectChat, onDeleteChat, onModelChange, onReasoningChange,
 }) {
   return (
     <>
@@ -30,17 +30,28 @@ export default function Sidebar({
           </select>
         </div>
 
-        <div className="toggle-row">
-          <span className="toggle-label">🧠 Reasoning Mode</span>
-          <label className="toggle-switch">
-            <input type="checkbox" checked={enableReasoning} onChange={e => onReasoningToggle(e.target.checked)} id="reasoning-toggle" />
-            <span className="toggle-track" />
-          </label>
+        <span className="settings-label">Reasoning</span>
+        <div className="select-wrapper">
+          <select value={reasoningEffort} onChange={e => onReasoningChange(e.target.value)} id="reasoning-select">
+            <option value="none">None</option>
+            <option value="minimal">Minimal</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="xhigh">X-High</option>
+            <option value="max">Max</option>
+          </select>
         </div>
 
         <div className="token-badge">
           <span className="token-badge-label">Tokens used</span>
           <span className="token-badge-value">{totalTokens.toLocaleString()}</span>
+          {usageDetails && (
+            <span className="token-badge-detail">
+              ↑ {(usageDetails.prompt_tokens || 0).toLocaleString()} · ↓ {(usageDetails.completion_tokens || 0).toLocaleString()}
+              {usageDetails.cost != null && ` · $${Number(usageDetails.cost).toFixed(4)}`}
+            </span>
+          )}
         </div>
       </div>
 
