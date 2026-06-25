@@ -22,7 +22,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        "http://andro-ai.localto.net:7239",
+        "https://andro-ai.localto.net:7239",
     ],
     allow_credentials=True,
     allow_methods=["*"],

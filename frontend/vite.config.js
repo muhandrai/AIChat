@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    host: true,
+    allowedHosts: ['andro-ai.localto.net'],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
