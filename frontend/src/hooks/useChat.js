@@ -68,10 +68,15 @@ export function useChat() {
     }
   }, [activeChatId, loadChats, loadMessages, createChat])
 
-  const sendMessage = useCallback(async (content, model, reasoningEffort) => {
+  const sendMessage = useCallback(async (content, model, reasoningEffort, files = []) => {
     if (!activeChatId || isStreaming) return
 
-    const userMsg = { role: 'user', content }
+    // Tampilan lokal: gabungkan teks + isi file jadi satu bubble (kosmetik saja).
+    let displayContent = content
+    for (const f of files) {
+      displayContent += `\n--- Document Content: ${f.filename} ---\n${f.content}`
+    }
+    const userMsg = { role: 'user', content: displayContent }
     setMessages(prev => [...prev, userMsg])
     setIsStreaming(true)
     setStreamingContent('')
@@ -88,7 +93,12 @@ export function useChat() {
       const res = await fetch(`${API}/api/chats/${activeChatId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, model, reasoning_effort: reasoningEffort }),
+        body: JSON.stringify({
+          content,
+          model,
+          reasoning_effort: reasoningEffort,
+          files: files.map(f => ({ filename: f.filename, content: f.content })),
+        }),
         signal: controller.signal,
       })
 

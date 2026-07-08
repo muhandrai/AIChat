@@ -79,12 +79,7 @@ export default function InputBar({ onSend, onStop, isStreaming, uploadFile, pref
     if (!trimmed && files.length === 0) return
     if (isStreaming) return
 
-    let finalContent = trimmed
-    for (const f of files) {
-      finalContent += `\n--- Document Content: ${f.filename} ---\n${f.content}`
-    }
-
-    onSend(finalContent)
+    onSend(trimmed, files)
     setText('')
     setFiles([])
   }

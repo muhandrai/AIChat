@@ -47,10 +47,10 @@ export default function App() {
   const chatTitle = activeChat?.title || 'New Chat'
 
   /* ── Handlers ───────────────────────────────────────────────────────────── */
-  const handleSend = async (content) => {
+  const handleSend = async (content, files) => {
     if (!selectedModel) { toast.error('Please select a model'); return }
     try {
-      await sendMessage(content, selectedModel, reasoningEffort)
+      await sendMessage(content, selectedModel, reasoningEffort, files)
     } catch (e) {
       toast.error('Failed to send message: ' + e.message)
     }

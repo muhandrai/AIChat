@@ -48,10 +48,15 @@ _reload_store()
 # Pydantic Models
 # ─────────────────────────────────────────────────────────────────────────────
 
+class FileAttachment(BaseModel):
+    filename: str
+    content: str
+
 class SendMessageRequest(BaseModel):
     content: str
     model: str
     reasoning_effort: str = "none"
+    files: list[FileAttachment] = []
 
 class UpdateTitleRequest(BaseModel):
     title: str
@@ -164,8 +169,16 @@ async def send_message(chat_id: str, body: SendMessageRequest):
             detail=f"Invalid reasoning_effort: {body.reasoning_effort}",
         )
 
-    # Append user message
-    chats_store[chat_id]["messages"].append({"role": "user", "content": body.content})
+    # 1) File terlampir (jika ada) dimasukkan ke context/history dulu
+    for f in body.files:
+        chats_store[chat_id]["messages"].append({
+            "role": "user",
+            "content": f"--- Document Content: {f.filename} ---\n{f.content}",
+        })
+
+    # 2) Baru prompt user ditambahkan setelah file masuk ke context
+    if body.content.strip():
+        chats_store[chat_id]["messages"].append({"role": "user", "content": body.content})
 
     # Move chat to top
     if chat_id in chat_order:
