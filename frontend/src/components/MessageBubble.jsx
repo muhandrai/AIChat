@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -35,6 +35,48 @@ function CodeBlock({ language, children }) {
   )
 }
 
+function TableBlock({ children }) {
+  const [copied, setCopied] = useState(false)
+  const tableRef = useRef(null)
+
+  const handleCopy = () => {
+    const table = tableRef.current
+    if (!table) return
+
+    const text = Array.from(table.rows)
+      .map((row) => Array.from(row.cells).map((cell) => cell.innerText.trim()).join('\t'))
+      .join('\n')
+
+    if (navigator.clipboard?.write && window.ClipboardItem) {
+      const html = `<table>${table.innerHTML}</table>`
+      const item = new ClipboardItem({
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' }),
+      })
+      navigator.clipboard.write([item]).catch(() => navigator.clipboard.writeText(text))
+    } else {
+      navigator.clipboard.writeText(text)
+    }
+
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="table-block-wrapper">
+      <div className="table-block-header">
+        <span>Table</span>
+        <button className="code-copy-btn" onClick={handleCopy}>
+          {copied ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
+        </button>
+      </div>
+      <div className="table-wrapper">
+        <table ref={tableRef}>{children}</table>
+      </div>
+    </div>
+  )
+}
+
 const markdownComponents = {
   code({ node, inline, className, children, ...props }) {
     const match = /language-(\w+)/.exec(className || '')
@@ -46,11 +88,7 @@ const markdownComponents = {
   },
   pre({ children }) { return <>{children}</> },
   table({ children }) {
-    return (
-      <div className="table-wrapper">
-        <table>{children}</table>
-      </div>
-    )
+    return <TableBlock>{children}</TableBlock>
   },
 }
 
